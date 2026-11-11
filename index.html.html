@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Autonomi til tiden – billetautomat</title>
+<meta name="description" content="Test af, hvordan du leder og understøtter medarbejdernes autonomi: Direction, Support og Boundaries. Skabt af Carsten Lund Pedersen.">
+<meta name="theme-color" content="#b5071f">
+<style>
+  :root{
+    --red:#b5071f; --red-dark:#8f0618; --navy:#12234a; --bg:#f1f1ee; --soft:#e9eef5;
+    --ok:#1a7f37; --warn:#c77700; --muted:#5b6785; --screen:#f4f8fc;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--navy);line-height:1.5}
+  .wrap{max-width:760px;margin:0 auto;padding:22px 16px 0}
+  .hidden{display:none}
+  h2{font-size:1.3rem;margin:0 0 14px;line-height:1.35}
+  h3{margin:0 0 6px;font-size:1.05rem}
+  p{margin:0 0 12px}
+  .ill{display:block;width:100%;height:auto}
+
+  /* ---------- Billetautomat ---------- */
+  .machine{position:relative;background:linear-gradient(160deg,#c80b26,#9a0519);border-radius:24px;padding:18px 18px 34px;box-shadow:0 18px 36px rgba(18,35,74,.25),inset 0 2px 0 rgba(255,255,255,.25)}
+  .plate{display:flex;align-items:center;gap:14px;color:#fff;margin-bottom:14px}
+  .badge{width:56px;height:49px;flex:none}
+  .plate h1{font-size:1.2rem;line-height:1.2;margin:0}
+  .plate p{margin:2px 0 0;font-size:.85rem;opacity:.9}
+  .led{margin-left:auto;width:12px;height:12px;border-radius:50%;background:#52e07a;box-shadow:0 0 10px #52e07a}
+  .bezel{background:#0d1930;border-radius:16px;padding:12px;box-shadow:inset 0 3px 10px rgba(0,0,0,.6)}
+  .screen{background:var(--screen);border-radius:8px;padding:20px;min-height:400px}
+
+  .keypad{display:flex;align-items:center;justify-content:center;gap:22px;margin-top:18px}
+  .slot-card,.slot-coin{background:#2a0008;border-radius:8px;height:14px;box-shadow:inset 0 2px 4px rgba(0,0,0,.7);position:relative}
+  .slot-card{width:90px}.slot-coin{width:34px;height:44px;border-radius:6px}
+  .slot-card::after{content:"";position:absolute;right:8px;top:-9px;width:7px;height:7px;border-radius:50%;background:#52e07a;box-shadow:0 0 6px #52e07a}
+  .slot-coin::after{content:"";position:absolute;left:50%;top:8px;bottom:8px;width:4px;margin-left:-2px;background:#000;border-radius:2px}
+  .keys{display:flex;gap:12px}
+  .key{all:unset;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;color:#fff;font-size:.7rem}
+  .key b{display:grid;place-items:center;width:48px;height:48px;border-radius:50%;font-size:1.1rem;color:var(--navy);
+    background:radial-gradient(circle at 35% 30%,#fff,#b9c3d6);border:2px solid #7d879d;box-shadow:0 4px 0 #5d667b;transition:transform .08s,box-shadow .08s}
+  .key:active b{transform:translateY(3px);box-shadow:0 1px 0 #5d667b}
+  .key:focus-visible b{outline:3px solid #ffd54a}
+  .keypad.off .key{opacity:.35;pointer-events:none}
+  .slot-label{text-align:center;color:#fff;opacity:.75;font-size:.68rem;letter-spacing:.12em;margin-top:18px}
+  .slot{position:absolute;left:10%;right:10%;bottom:-9px;height:20px;background:#220006;border-radius:10px;border-top:2px solid #6a0f1d;z-index:3;box-shadow:0 6px 12px rgba(0,0,0,.25)}
+
+  /* ---------- Billet ---------- */
+  .ticket-wrap{position:relative;z-index:1;width:min(430px,86%);margin:-4px auto 0;overflow:hidden;max-height:0;transition:max-height 2.2s ease-in-out}
+  .ticket-wrap.out{max-height:900px}
+  .ticket{position:relative;background:#fffdf6;border-radius:0 0 12px 12px;padding:22px 18px 14px;transform:translateY(-100%);transition:transform 2.2s ease-in-out;box-shadow:0 6px 18px rgba(18,35,74,.18)}
+  .ticket-wrap.out .ticket{transform:none}
+  .t-top{display:flex;justify-content:space-between;align-items:baseline;font-size:.8rem;color:var(--muted);border-bottom:2px solid var(--navy);padding-bottom:6px;margin-bottom:10px}
+  .t-top b{color:var(--red);letter-spacing:.08em}
+  .t-route{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:.9rem;margin-bottom:12px}
+  .t-route small{color:var(--muted);letter-spacing:.1em}
+  .t-route span{font-size:1.4rem;color:var(--red)}
+  .t-status{display:inline-block;font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:800;color:#fff;padding:4px 12px;border-radius:6px;margin-bottom:8px}
+  .t-score{font-size:1.9rem;font-weight:800;line-height:1.1}
+  .t-score small{font-size:.9rem;font-weight:600;color:var(--muted)}
+  .t-cause{font-size:.9rem;color:var(--muted);margin-top:4px}
+  .perf{position:relative;border-top:2px dashed #c4cad8;margin:16px -18px 14px}
+  .perf::before,.perf::after{content:"";position:absolute;top:-11px;width:20px;height:20px;border-radius:50%;background:var(--bg)}
+  .perf::before{left:-10px}.perf::after{right:-10px}
+  .barcode{height:38px;background:repeating-linear-gradient(90deg,#12234a 0 2px,transparent 2px 4px,#12234a 4px 5px,transparent 5px 8px,#12234a 8px 11px,transparent 11px 13px)}
+  .t-by{font-size:.72rem;color:var(--muted);text-align:center;margin-top:8px}
+  .ticket-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;padding:14px 0 6px}
+  .st{font-weight:700;padding:3px 10px;border-radius:5px;color:#fff}
+  .st.ok{background:var(--ok)}.st.warn{background:var(--warn)}.st.bad{background:var(--red)}
+
+  /* ---------- Knapper ---------- */
+  button.btn{all:unset;cursor:pointer;padding:12px 22px;border-radius:8px;background:var(--red);color:#fff;font-weight:700;display:inline-block}
+  button.btn:hover,button.btn:focus-visible{background:var(--red-dark)}
+  button.btn.ghost{background:transparent;color:var(--navy);border:2px solid #cfd6e4}
+  button.btn.ghost:hover{border-color:var(--red);background:transparent}
+
+  /* ---------- Intro ---------- */
+  .pillars{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:16px 0}
+  .pillar{background:var(--soft);border-radius:12px;padding:12px 12px 14px;text-align:center}
+  .pillar .ill{max-width:150px;margin:0 auto 6px}
+  .pillar i{display:inline-grid;place-items:center;width:38px;height:38px;border-radius:50%;background:var(--red);color:#fff;font-style:normal;font-weight:800;font-size:1.2rem;margin-bottom:4px}
+  .pillar b{display:block}
+  .pillar small{color:var(--muted)}
+  .how{background:#fff;border-left:4px solid var(--red);padding:12px 14px;border-radius:6px;margin:16px 0}
+  .how ul{margin:6px 0 0;padding-left:20px}
+
+  /* ---------- Rutekort (fremdrift) ---------- */
+  .route{position:relative;height:58px;margin:4px 20px 14px}
+  .rline{position:absolute;left:0;right:0;top:28px;height:4px;background:#dbe3ef;border-radius:2px}
+  .rfill{height:100%;width:0;background:var(--red);border-radius:2px;transition:width .6s ease-in-out}
+  .stop{position:absolute;top:21px;transform:translateX(-50%);text-align:center}
+  .stop i{display:grid;place-items:center;width:18px;height:18px;border-radius:50%;background:#fff;border:3px solid #b9c3d6;margin:0 auto 3px;color:#fff;font-size:.6rem;font-style:normal;line-height:1;transition:background .3s,border-color .3s}
+  .stop.done i{background:var(--red);border-color:var(--red)}
+  .stop.done i::after{content:"✓"}
+  .stop span{font-size:.62rem;color:var(--muted);font-weight:700;white-space:nowrap}
+  .mtrain{position:absolute;top:4px;left:0;width:46px;height:auto;transform:translateX(-50%);transition:left .6s ease-in-out;filter:drop-shadow(0 2px 2px rgba(18,35,74,.25))}
+
+  /* ---------- Spørgsmål ---------- */
+  .qhead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
+  .count{font-size:.85rem;color:var(--muted);margin-top:4px}
+  .chip{display:inline-flex;align-items:center;gap:8px;font-weight:700;color:var(--navy)}
+  .chip i{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--red);color:#fff;font-style:normal}
+  .qill{width:120px;height:auto;flex:none}
+  .qill.pop{animation:pop .45s ease-out}
+  @keyframes pop{from{opacity:0;transform:translateY(6px) scale(.96)}to{opacity:1;transform:none}}
+  .lead{color:var(--muted);font-size:.9rem;margin-bottom:6px}
+  .opts{display:grid;gap:10px;margin-top:6px}
+  .opt{all:unset;box-sizing:border-box;cursor:pointer;padding:14px 16px;border:2px solid #dbe3ef;border-radius:10px;background:#fff}
+  .opt:hover,.opt:focus-visible{border-color:var(--red)}
+  .opt.sel{border-color:var(--red);background:#fdeef0}
+  .hint{color:var(--muted);font-size:.8rem;margin-top:14px}
+
+  /* ---------- Toggrafik ---------- */
+  .scene{position:relative;height:200px;margin:0 0 16px;overflow:hidden;border-radius:12px;background:linear-gradient(#bcd6f0,#eaf3fb 70%)}
+  .cloud{position:absolute;height:18px;border-radius:99px;background:#fff;opacity:.85;animation:drift 40s linear infinite}
+  .cloud::before{content:"";position:absolute;left:14px;top:-9px;width:26px;height:20px;border-radius:50%;background:#fff}
+  .c1{top:22px;width:70px;left:-90px}
+  .c2{top:56px;width:50px;left:-60px;animation-duration:58s;animation-delay:-20s;opacity:.6}
+  @keyframes drift{to{transform:translateX(900px)}}
+  .skyline{position:absolute;left:0;right:0;bottom:28px;width:100%;height:62px;opacity:.35}
+  .platform{position:absolute;left:34%;right:0;bottom:28px;height:40px;background:linear-gradient(#cfd6e3,#aeb8cb);border-top:5px solid #f2c300}
+  .psign{position:absolute;right:14px;bottom:68px;width:100px;text-align:center}
+  .psign .top{background:var(--red);color:#fff;font-weight:700;font-size:.7rem;border-radius:5px;padding:4px 6px;display:flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
+  .psign .top svg{width:16px;height:16px;flex:none}
+  .psign .pole{width:5px;height:56px;background:var(--navy);margin:0 auto}
+  .signal{position:absolute;left:46%;bottom:28px;width:30px}
+  .signal .head{background:#1b2236;border-radius:8px;padding:5px;display:grid;gap:5px;justify-items:center;width:24px;margin:0 auto}
+  .signal .head i{width:12px;height:12px;border-radius:50%;background:#3b4256;transition:background .4s,box-shadow .4s}
+  .signal.red .r{background:#ff3b30;box-shadow:0 0 10px #ff3b30}
+  .signal.green .g{background:#34d058;box-shadow:0 0 10px #34d058}
+  .signal .pole{width:4px;height:100px;background:#4a5370;margin:0 auto}
+  .sleepers{position:absolute;left:0;right:0;bottom:16px;height:10px;background:repeating-linear-gradient(90deg,#7b8499 0 5px,transparent 5px 20px)}
+  .track{position:absolute;left:0;right:0;bottom:22px;height:6px;background:var(--navy)}
+  #train{position:absolute;bottom:21px;left:-290px;width:270px;height:72px;transition:left 3s cubic-bezier(.12,.7,.2,1);filter:drop-shadow(0 4px 3px rgba(18,35,74,.25))}
+  .wheel{transform-box:fill-box;transform-origin:center}
+  #train.moving .wheel{animation:spin .35s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .caption{position:absolute;left:10px;top:10px;font-size:.78rem;font-weight:700;padding:4px 10px;border-radius:99px;background:#fff;color:var(--navy);box-shadow:0 1px 4px rgba(18,35,74,.2);opacity:0;transition:opacity .5s .2s}
+  .caption.show{opacity:1}
+  .caption.ok{color:var(--ok)}.caption.bad{color:var(--red)}
+
+  /* ---------- Afgangstavle med klappende bogstaver ---------- */
+  .fboard{--w:20px;--h:30px;--fs:1.05rem;background:#0a0f1d;border-radius:12px;padding:12px 14px 12px;color:#fff;box-shadow:inset 0 0 0 2px #1d2744,0 4px 12px rgba(10,15,29,.25)}
+  .fhead{display:flex;justify-content:space-between;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.7rem;letter-spacing:.18em;color:#8b97b8;margin-bottom:12px}
+  .frow{display:grid;grid-template-columns:62px 1fr;gap:8px;align-items:center;margin-bottom:10px}
+  .flabel{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.62rem;letter-spacing:.14em;color:#8b97b8}
+  .flaps{display:flex;flex-wrap:wrap;gap:4px 12px;min-height:var(--h)}
+  .fword{display:inline-flex;gap:2px;white-space:nowrap}
+  .flap{position:relative;display:grid;place-items:center;width:var(--w);height:var(--h);background:linear-gradient(#1b2338 50%,#111829 50%);border-radius:3px;font:700 var(--fs) ui-monospace,Menlo,Consolas,monospace;color:#f4f6fb}
+  .flap::after{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:#04070e}
+  .flap.go{animation:flipc .14s ease-in-out}
+  @keyframes flipc{0%{transform:perspective(220px) rotateX(0)}50%{transform:perspective(220px) rotateX(-85deg)}100%{transform:perspective(220px) rotateX(0)}}
+  .fc-ok .flap{color:#7cf29a}.fc-warn .flap{color:#ffd54a}.fc-bad .flap{color:#ff7b7b}
+
+  /* ---------- Resultat ---------- */
+  .score{font-size:2.2rem;font-weight:800;margin:14px 0 2px}
+  .cats{display:grid;gap:12px;margin:16px 0}
+  .cat{display:grid;grid-template-columns:84px 1fr;gap:12px;align-items:start;background:#fff;border:2px solid #dbe3ef;border-radius:12px;padding:12px 14px}
+  .cat-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+  .cat-head .name{display:flex;align-items:center;gap:8px;font-weight:700}
+  .cat-head .name i{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--red);color:#fff;font-style:normal;font-size:.85rem}
+  .tag{font-size:.75rem;font-weight:700;padding:2px 9px;border-radius:99px;color:#fff;white-space:nowrap}
+  .tag.ok{background:var(--ok)}.tag.warn{background:var(--warn)}.tag.bad{background:var(--red)}
+  .meter{height:12px;border-radius:99px;background:var(--soft);overflow:hidden;margin-bottom:10px}
+  .meter div{height:100%;background:var(--red);border-radius:99px;width:0;transition:width 1.2s}
+  .cat p{margin:0;font-size:.95rem}
+  .next{background:var(--soft);border-radius:12px;padding:16px 18px}
+  .next ul{margin:8px 0 0;padding-left:20px}
+  .next li{margin-bottom:4px}
+  .pickup{text-align:center;color:var(--muted);font-size:.85rem;margin-top:14px}
+  .source{display:flex;align-items:center;gap:12px;background:#fff;border:2px solid #dbe3ef;border-radius:12px;padding:12px 14px;margin:16px 0;text-decoration:none;color:var(--navy);transition:border-color .15s}
+  .source:hover,.source:focus-visible{border-color:var(--red)}
+  .source svg{flex:none;width:34px;height:42px}
+  .source b{display:block;font-size:.92rem;line-height:1.3}
+  .source small{color:var(--muted)}
+  .source .go{margin-left:auto;color:var(--red);font-weight:700;white-space:nowrap}
+
+  .footer{margin:26px -16px 0;background:var(--red);color:#fff;padding:16px 24px;display:flex;align-items:center;justify-content:space-between;gap:10px 14px;flex-wrap:wrap}
+  .footer .tagline{font-size:1.4rem;font-weight:700;display:flex;gap:14px}
+  .footer .by{font-size:.85rem;opacity:.9}
+
+  @media(max-width:560px){
+    .pillars{grid-template-columns:1fr}
+    .pillar .ill{max-width:170px}
+    .slot-card,.slot-coin{display:none}
+    .screen{padding:16px}
+    .psign{width:auto;right:8px}
+    .psign .top{font-size:.6rem;gap:4px;padding:3px 5px}
+    .psign .top svg{width:12px;height:12px}
+    .plate h1{font-size:1.05rem}
+    .plate p{font-size:.75rem}
+    .badge{width:46px;height:40px}
+    .led{display:none}
+    .t-top{flex-wrap:wrap;gap:2px 10px}
+    .qill{width:92px}
+    .route{margin-left:16px;margin-right:16px}
+    .fboard{--w:14px;--h:23px;--fs:.82rem}
+    .frow{grid-template-columns:1fr;gap:4px}
+    .cat{grid-template-columns:62px 1fr;gap:10px}
+    .footer{flex-direction:column;align-items:flex-start;gap:4px;padding:14px 20px}
+    .footer .tagline{font-size:1.15rem;gap:10px}
+    .footer .by{font-size:.8rem}
+  }
+</style>
+</head>
+<body>
+
+<!-- Illustrationer til de tre greb -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <!-- Direction: rygsæk, rød sti og lokationsnål -->
+    <symbol id="ill-d" viewBox="0 0 200 140">
+      <path d="M16 90C8 50 56 20 104 32c46 10 86 6 82 54-4 38-62 48-114 40C38 120 22 108 16 90Z" fill="#dce9f7"/>
+      <path d="M10 114H190" stroke="#12234a" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M92 90Q122 66 152 90" fill="none" stroke="#9fb3d1" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M66 110C92 108 108 98 138 100C150 101 158 92 162 78" fill="none" stroke="#b5071f" stroke-width="4.5" stroke-linecap="round"/>
+      <path d="M162 80C150 66 148 56 155 48C161 42 171 43 174 50C177 58 173 67 162 80Z" fill="#b5071f"/>
+      <circle cx="163" cy="54" r="4" fill="#fff"/>
+      <rect x="21" y="62" width="14" height="26" rx="5" fill="#b5071f"/>
+      <rect x="32" y="56" width="26" height="40" rx="10" fill="#fff" stroke="#12234a" stroke-width="2.5"/>
+      <path d="M42 98l-5 15M52 98l6 15" stroke="#12234a" stroke-width="4.5" stroke-linecap="round"/>
+      <path d="M55 66l22-9" stroke="#12234a" stroke-width="4.5" stroke-linecap="round"/>
+      <circle cx="46" cy="42" r="10" fill="#f2cfae" stroke="#12234a" stroke-width="2.5"/>
+      <path d="M36 40C37 31 48 29 55 36C50 35 44 36 36 40Z" fill="#12234a"/>
+    </symbol>
+
+    <!-- Support: hånd der hjælper op ad trappen -->
+    <symbol id="ill-s" viewBox="0 0 200 140">
+      <path d="M14 88C10 48 60 24 106 32c46 8 86 4 80 52-6 40-64 50-112 42C40 122 18 110 14 88Z" fill="#dce9f7"/>
+      <path d="M12 118H72V100H114V84H188" fill="none" stroke="#12234a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="128" y="46" width="26" height="28" rx="9" fill="#b5071f"/>
+      <path d="M135 74l-2 10M148 74l3 10" stroke="#12234a" stroke-width="4.5" stroke-linecap="round"/>
+      <path d="M129 54L104 66" stroke="#b5071f" stroke-width="6" stroke-linecap="round"/>
+      <circle cx="141" cy="35" r="10" fill="#f2cfae" stroke="#12234a" stroke-width="2.5"/>
+      <path d="M131 33C132 24 144 22 151 29C146 28 139 29 131 33Z" fill="#12234a"/>
+      <rect x="46" y="68" width="28" height="32" rx="10" fill="#fff" stroke="#12234a" stroke-width="2.5"/>
+      <path d="M54 100L48 117M66 100L82 98" stroke="#12234a" stroke-width="4.5" stroke-linecap="round"/>
+      <path d="M72 76L100 66" stroke="#12234a" stroke-width="4.5" stroke-linecap="round"/>
+      <circle cx="60" cy="55" r="10" fill="#f2cfae" stroke="#12234a" stroke-width="2.5"/>
+      <path d="M50 53C51 44 62 42 69 49C64 48 58 49 50 53Z" fill="#12234a"/>
+      <circle cx="103" cy="66" r="4.5" fill="#f2cfae" stroke="#12234a" stroke-width="2"/>
+      <path d="M108 52l4-6M116 58l7-3M98 50l-2-7" stroke="#12234a" stroke-width="2" stroke-linecap="round"/>
+    </symbol>
+
+    <!-- Boundaries: bom og tog -->
+    <symbol id="ill-b" viewBox="0 0 200 140">
+      <path d="M14 90C8 52 54 24 102 34c48 10 88 4 82 52-5 38-64 48-114 40C38 122 20 108 14 90Z" fill="#dce9f7"/>
+      <path d="M8 116H192" stroke="#12234a" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M20 124H180" stroke="#9fb3d1" stroke-width="2.5" stroke-linecap="round"/>
+      <rect x="34" y="58" width="9" height="58" rx="2" fill="#12234a"/>
+      <circle cx="38.5" cy="50" r="6" fill="#b5071f" stroke="#12234a" stroke-width="2"/>
+      <rect x="43" y="60" width="96" height="9" rx="4.5" fill="#fff" stroke="#12234a" stroke-width="2"/>
+      <rect x="56" y="61" width="12" height="7" fill="#b5071f"/>
+      <rect x="80" y="61" width="12" height="7" fill="#b5071f"/>
+      <rect x="104" y="61" width="12" height="7" fill="#b5071f"/>
+      <path d="M146 116V88C146 79 152 72 161 72H186Q194 72 194 80V116Z" fill="#fff" stroke="#12234a" stroke-width="2.5" stroke-linejoin="round"/>
+      <path d="M149 82H166V96H149Z" fill="#12234a"/>
+      <rect x="172" y="80" width="14" height="12" rx="2" fill="#12234a"/>
+      <rect x="147" y="102" width="46" height="6" fill="#b5071f"/>
+      <circle cx="151" cy="100" r="2.2" fill="#ffe58a"/>
+      <circle cx="160" cy="116" r="5" fill="#12234a"/><circle cx="182" cy="116" r="5" fill="#12234a"/>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="wrap">
+
+  <div class="machine">
+    <div class="plate">
+      <svg class="badge" viewBox="0 0 64 56" aria-hidden="true">
+        <polygon points="16,2 48,2 62,28 48,54 16,54 2,28" fill="#fff" stroke="#fff" stroke-width="4" stroke-linejoin="round"/>
+        <text x="32" y="35" text-anchor="middle" font-family="system-ui,sans-serif" font-weight="800" font-size="20" fill="#b5071f">DSB</text>
+      </svg>
+      <div>
+        <h1>Er jeres autonomi til tiden?</h1>
+        <p>Billetautomat for ledere · Direction, Support, Boundaries</p>
+      </div>
+      <span class="led" aria-hidden="true"></span>
+    </div>
+
+    <div class="bezel"><div class="screen">
+
+      <!-- Introside -->
+      <section id="intro">
+        <h2>Hvor god er du til at lede autonomi?</h2>
+        <p>Medarbejdere, der selv kan træffe beslutninger, er mere engagerede og løser opgaver bedre. Men autonomi opstår ikke af sig selv. Den bygger på tre greb, som du som leder kan arbejde med. Deres engelske navne giver forkortelsen <strong>DSB</strong>: <strong>D</strong>irection, <strong>S</strong>upport og <strong>B</strong>oundaries.</p>
+        <div class="pillars">
+          <div class="pillar"><svg class="ill" viewBox="0 0 200 140" aria-hidden="true"><use href="#ill-d"/></svg><i>D</i><b>Direction</b><small>Retning</small><br><small>Hvorhen skal vi?</small></div>
+          <div class="pillar"><svg class="ill" viewBox="0 0 200 140" aria-hidden="true"><use href="#ill-s"/></svg><i>S</i><b>Support</b><small>Støtte</small><br><small>Hvordan hjælper jeg?</small></div>
+          <div class="pillar"><svg class="ill" viewBox="0 0 200 140" aria-hidden="true"><use href="#ill-b"/></svg><i>B</i><b>Boundaries</b><small>Rammer</small><br><small>Hvad må man selv bestemme?</small></div>
+        </div>
+        <div class="how">
+          <strong>Sådan bruger du automaten</strong>
+          <ul>
+            <li>Der er 12 udsagn, og testen tager ca. 3 minutter.</li>
+            <li>Vælg, hvor enig du er, ud fra <em>hvordan det er i dag</em>, ikke ud fra hvordan du gerne vil have det.</li>
+            <li>Tryk på svaret på skærmen eller på knapperne 1-4 under skærmen. Du går automatisk videre.</li>
+            <li>Toget kører fra stop til stop, mens du svarer. Til sidst viser afgangstavlen, om jeres autonomi er til tiden, og automaten printer din billet.</li>
+          </ul>
+        </div>
+        <a class="source" href="https://research-api.cbs.dk/ws/portalfiles/portal/58445910/pedersen_appliedautonomy_may2018.pdf" target="_blank" rel="noopener">
+          <svg viewBox="0 0 34 42" aria-hidden="true"><path d="M2 2H22L32 12V40H2Z" fill="#fff" stroke="#12234a" stroke-width="2.5" stroke-linejoin="round"/><path d="M22 2V12H32" fill="#dce9f7" stroke="#12234a" stroke-width="2.5" stroke-linejoin="round"/><rect x="7" y="19" width="20" height="3" fill="#b5071f"/><rect x="7" y="26" width="20" height="3" fill="#9fb3d1"/><rect x="7" y="33" width="13" height="3" fill="#9fb3d1"/></svg>
+          <span><b>Læs mere om medarbejderautonomi</b><small>Applied Autonomy: A Practical Guide to Employee Autonomy · Carsten Lund Pedersen, CBS, 2018 (PDF, engelsk)</small></span>
+          <span class="go">Åbn →</span>
+        </a>
+        <button class="btn" id="start">Start testen</button>
+      </section>
+
+      <!-- Spørgsmål -->
+      <section id="quiz" class="hidden">
+        <div class="route" id="routeMap" aria-hidden="true">
+          <div class="rline"><div class="rfill" id="rfill"></div></div>
+          <div class="stop" style="left:0%"><i></i><span>Afgang</span></div>
+          <div class="stop" style="left:25%"><i></i><span>Direction</span></div>
+          <div class="stop" style="left:50%"><i></i><span>Support</span></div>
+          <div class="stop" style="left:75%"><i></i><span>Boundaries</span></div>
+          <div class="stop" style="left:100%"><i></i><span>Ankomst</span></div>
+          <svg class="mtrain" id="mtrain" viewBox="0 0 48 20">
+            <path d="M2 4Q2 2 5 2H34C42 2 46 8 47 14V16H2Z" fill="#fff" stroke="#12234a" stroke-width="1.5" stroke-linejoin="round"/>
+            <rect x="2.5" y="11" width="44" height="3" fill="#b5071f"/>
+            <rect x="6" y="5" width="6" height="4" rx="1" fill="#12234a"/><rect x="15" y="5" width="6" height="4" rx="1" fill="#12234a"/><rect x="24" y="5" width="6" height="4" rx="1" fill="#12234a"/>
+            <path d="M33 4H35C39 5 42 8 43 10H33Z" fill="#12234a"/>
+            <circle cx="10" cy="17" r="2.3" fill="#12234a"/><circle cx="38" cy="17" r="2.3" fill="#12234a"/>
+          </svg>
+        </div>
+        <div class="qhead">
+          <div><span class="chip" id="cat"></span><div class="count" id="count"></div></div>
+          <svg class="qill ill" id="qill" viewBox="0 0 200 140" aria-hidden="true"><use href="#ill-d"/></svg>
+        </div>
+        <div class="lead">Hvor enig er du i dette udsagn om dig og dit team?</div>
+        <h2 id="q"></h2>
+        <div class="opts" id="opts"></div>
+        <div class="hint">Tip: Du kan også trykke på knapperne 1-4 under skærmen.</div>
+      </section>
+
+      <!-- Resultat -->
+      <section id="result" class="hidden">
+        <div class="scene" aria-hidden="true">
+          <div class="cloud c1"></div><div class="cloud c2"></div>
+          <svg class="skyline" viewBox="0 0 400 62" preserveAspectRatio="none">
+            <g fill="#5b78a6">
+              <rect x="0" y="30" width="30" height="32"/><rect x="34" y="14" width="22" height="48"/>
+              <rect x="60" y="34" width="40" height="28"/><rect x="104" y="20" width="26" height="42"/>
+              <rect x="134" y="38" width="34" height="24"/><rect x="172" y="8" width="18" height="54"/>
+              <rect x="194" y="28" width="38" height="34"/><rect x="236" y="36" width="30" height="26"/>
+              <rect x="270" y="16" width="24" height="46"/><rect x="298" y="32" width="44" height="30"/>
+              <rect x="346" y="22" width="26" height="40"/><rect x="376" y="36" width="24" height="26"/>
+            </g>
+          </svg>
+          <div class="platform"></div>
+          <div class="psign">
+            <div class="top">
+              <svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="#fff"/><path d="M8 3v5l3 2" stroke="#b5071f" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>
+              AUTONOMI
+            </div>
+            <div class="pole"></div>
+          </div>
+          <div class="signal" id="signal"><div class="head"><i class="r"></i><i class="g"></i></div><div class="pole"></div></div>
+          <div class="sleepers"></div><div class="track"></div>
+
+          <svg id="train" viewBox="0 0 270 72">
+            <path d="M8 12 Q8 8 12 8 H200 C232 8 252 24 262 42 Q266 48 266 56 H8 Z" fill="#fff" stroke="#12234a" stroke-width="2.5" stroke-linejoin="round"/>
+            <path d="M9 40 H259 Q264 44 265 56 H9 Z" fill="#b5071f"/>
+            <rect x="60" y="4" width="70" height="5" rx="2" fill="#8a93a8"/>
+            <rect x="150" y="5" width="30" height="4" rx="2" fill="#8a93a8"/>
+            <g fill="#12234a">
+              <rect x="20" y="16" width="26" height="16" rx="3"/>
+              <rect x="54" y="16" width="26" height="16" rx="3"/>
+              <rect x="126" y="16" width="26" height="16" rx="3"/>
+              <rect x="160" y="16" width="26" height="16" rx="3"/>
+            </g>
+            <g fill="#8fb4de" opacity=".55">
+              <rect x="22" y="18" width="10" height="5" rx="2"/><rect x="56" y="18" width="10" height="5" rx="2"/>
+              <rect x="128" y="18" width="10" height="5" rx="2"/><rect x="162" y="18" width="10" height="5" rx="2"/>
+            </g>
+            <rect x="90" y="12" width="30" height="42" rx="3" fill="#dfe6f2" stroke="#12234a" stroke-width="2"/>
+            <rect x="96" y="17" width="18" height="16" rx="2" fill="#12234a"/>
+            <line x1="105" y1="12" x2="105" y2="54" stroke="#12234a" stroke-width="1.5"/>
+            <path d="M200 14 H212 C228 16 240 26 246 38 H200 Z" fill="#12234a"/>
+            <path d="M206 18 H212 C220 19 226 23 230 28 H206 Z" fill="#8fb4de" opacity=".5"/>
+            <circle cx="262" cy="48" r="3.2" fill="#ffe58a"/>
+            <circle cx="238" cy="47" r="2" fill="#ff8a8a"/>
+            <rect x="8" y="54" width="256" height="4" fill="#12234a"/>
+            <g class="wheel"><circle cx="42" cy="62" r="8" fill="#12234a"/><circle cx="42" cy="62" r="3.5" fill="#aab4c8"/><line x1="42" y1="55" x2="42" y2="69" stroke="#aab4c8" stroke-width="1.5"/></g>
+            <g class="wheel"><circle cx="72" cy="62" r="8" fill="#12234a"/><circle cx="72" cy="62" r="3.5" fill="#aab4c8"/><line x1="72" y1="55" x2="72" y2="69" stroke="#aab4c8" stroke-width="1.5"/></g>
+            <g class="wheel"><circle cx="196" cy="62" r="8" fill="#12234a"/><circle cx="196" cy="62" r="3.5" fill="#aab4c8"/><line x1="196" y1="55" x2="196" y2="69" stroke="#aab4c8" stroke-width="1.5"/></g>
+            <g class="wheel"><circle cx="226" cy="62" r="8" fill="#12234a"/><circle cx="226" cy="62" r="3.5" fill="#aab4c8"/><line x1="226" y1="55" x2="226" y2="69" stroke="#aab4c8" stroke-width="1.5"/></g>
+          </svg>
+          <div class="caption" id="caption"></div>
+        </div>
+
+        <!-- Afgangstavle -->
+        <div class="fboard" aria-live="polite">
+          <div class="fhead"><span>AFGANG</span><span id="fClock">00:00</span></div>
+          <div class="frow"><span class="flabel">TIL</span><div class="flaps" id="fTo"></div></div>
+          <div class="frow"><span class="flabel">STATUS</span><div class="flaps" id="fStatus"></div></div>
+          <div class="frow" style="margin-bottom:0"><span class="flabel">ÅRSAG</span><div class="flaps" id="fCause"></div></div>
+        </div>
+
+        <div class="score"><span id="total"></span> af 48 point</div>
+        <p id="verdict"></p>
+        <div class="cats" id="cats"></div>
+        <div class="next" id="next"></div>
+        <a class="source" href="https://research-api.cbs.dk/ws/portalfiles/portal/58445910/pedersen_appliedautonomy_may2018.pdf" target="_blank" rel="noopener">
+          <svg viewBox="0 0 34 42" aria-hidden="true"><path d="M2 2H22L32 12V40H2Z" fill="#fff" stroke="#12234a" stroke-width="2.5" stroke-linejoin="round"/><path d="M22 2V12H32" fill="#dce9f7" stroke="#12234a" stroke-width="2.5" stroke-linejoin="round"/><rect x="7" y="19" width="20" height="3" fill="#b5071f"/><rect x="7" y="26" width="20" height="3" fill="#9fb3d1"/><rect x="7" y="33" width="13" height="3" fill="#9fb3d1"/></svg>
+          <span><b>Vil du vide mere?</b><small>Applied Autonomy: A Practical Guide to Employee Autonomy · Carsten Lund Pedersen, CBS, 2018 (PDF, engelsk)</small></span>
+          <span class="go">Åbn →</span>
+        </a>
+        <div class="pickup">Din billet er printet. Tag den i billetudgangen nederst på automaten.</div>
+      </section>
+
+    </div></div>
+
+    <div class="keypad off" id="keypad">
+      <div class="slot-card" aria-hidden="true"></div>
+      <div class="keys">
+        <button class="key" data-k="0"><b>1</b>−−</button>
+        <button class="key" data-k="1"><b>2</b>−</button>
+        <button class="key" data-k="2"><b>3</b>+</button>
+        <button class="key" data-k="3"><b>4</b>++</button>
+      </div>
+      <div class="slot-coin" aria-hidden="true"></div>
+    </div>
+    <div class="slot-label">BILLETUDGANG</div>
+    <div class="slot"></div>
+  </div>
+
+  <!-- Billet -->
+  <div class="ticket-wrap" id="ticketWrap">
+    <div class="ticket" id="ticket">
+      <div class="t-top"><b>AUTONOMI-BILLET</b><span id="tDate"></span></div>
+      <div class="t-route">
+        <div><small>FRA</small><br>Nuværende situation</div>
+        <span>→</span>
+        <div style="text-align:right"><small>TIL</small><br>Selvstændigt team</div>
+      </div>
+      <div class="t-status st" id="tStatus"></div>
+      <div class="t-score"><span id="tScore"></span> <small>af 48 point</small></div>
+      <div class="t-cause" id="tCause"></div>
+      <div class="perf"></div>
+      <div class="barcode" aria-hidden="true"></div>
+      <div class="t-by">Skabt af Carsten Lund Pedersen</div>
+    </div>
+    <div class="ticket-actions">
+      <button class="btn" id="restart">Tag testen igen</button>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span class="tagline"><span>→</span><span>autonomi til tiden</span></span>
+    <span class="by">Skabt af Carsten Lund Pedersen</span>
+  </div>
+</div>
+
+<script>
+/* ---------- Indhold ---------- */
+const CATS = [
+  { key:"D", da:"Retning", en:"Direction", cause:"Signalfejl: uklar retning", short:"UKLAR RETNING",
+    texts:{
+      ok:"Dine medarbejdere ved, hvorhen de skal, og hvorfor det er vigtigt. Det gør det nemt for dem at beslutte selv.",
+      warn:"Retningen er der for det meste, men er nogle gange uklar eller skifter uden forklaring. Medarbejderne må gætte for ofte.",
+      bad:"Medarbejderne mangler et tydeligt mål at styre efter. Uden retning bliver frihed let til usikkerhed, eller de spørger dig om alt."
+    },
+    actions:[
+      "Fortæl, hvad der skal opnås og hvorfor, og lad teamet bestemme hvordan.",
+      "Spørg i næste teammøde: \"Hvordan ser et godt resultat ud for os?\" Og lyt til svarene.",
+      "Når prioriteterne ændres, så sig det med det samme og forklar årsagen."
+    ]},
+  { key:"S", da:"Støtte", en:"Support", cause:"Materielmangel: for lidt støtte", short:"FOR LIDT STØTTE",
+    texts:{
+      ok:"Du er en god støtte. Dine medarbejdere tør tage ansvar, fordi de ved, at du hjælper dem videre, hvis det går skævt.",
+      warn:"Du støtter ofte, men ikke altid, når det gælder. Nogle medarbejdere kan være usikre på, om det er trygt at prøve noget nyt.",
+      bad:"Medarbejderne står for meget alene, eller du løser opgaverne for dem. Begge dele gør det sværere at vokse ind i ansvaret."
+    },
+    actions:[
+      "Svar på næste henvendelse med et spørgsmål: \"Hvad tænker du selv, vi skal gøre?\"",
+      "Tal om fejl som læring i stedet for skyld. Start gerne med en af dine egne.",
+      "Aftal med hver medarbejder, hvilken sparring eller træning der mangler for at kunne tage mere ansvar."
+    ]},
+  { key:"B", da:"Rammer", en:"Boundaries", cause:"Sporarbejde: uklare rammer", short:"UKLARE RAMMER",
+    texts:{
+      ok:"Rammerne er tydelige, og du respekterer dem selv. Medarbejderne ved, hvor de kan træffe beslutninger uden at spørge først.",
+      warn:"Rammerne er nogenlunde kendte, men i grænsetilfælde er det uklart, hvem der bestemmer. Det giver tøven eller overraskelser.",
+      bad:"Rammerne er uklare, eller du blander dig i beslutninger, som medarbejderne burde tage selv. Så bliver autonomi i praksis kun tilladelse på prøve."
+    },
+    actions:[
+      "Lav en enkel liste over, hvad teamet selv kan bestemme, hvad de skal informere om, og hvad der skal godkendes.",
+      "Når en medarbejder har truffet en beslutning inden for rammerne, så lad den stå, også selvom du selv ville have valgt anderledes.",
+      "Tag rammerne op til fælles drøftelse en gang i kvartalet. Er de for stramme eller for løse?"
+    ]}
+];
+
+const QUESTIONS = [
+  { c:0, t:"Mine medarbejdere ved, hvorfor deres arbejde er vigtigt for helheden." },
+  { c:0, t:"Jeg fortæller, hvad der skal opnås, og lader medarbejderne finde ud af, hvordan det skal ske." },
+  { c:0, t:"Alle i teamet har samme billede af, hvad der er et godt resultat." },
+  { c:0, t:"Når prioriteterne ændrer sig, fortæller jeg det med det samme og forklarer hvorfor." },
+
+  { c:1, t:"Når der sker en fejl, bruger vi den til at lære af og ikke til at finde en skyldig." },
+  { c:1, t:"Når en medarbejder spørger mig til råds, svarer jeg ofte med et spørgsmål, så de selv finder løsningen." },
+  { c:1, t:"Mine medarbejdere får den træning og sparring, de har brug for for at kunne tage ansvar." },
+  { c:1, t:"Jeg giver feedback jævnligt, både ros og forslag til, hvad de kan gøre bedre." },
+
+  { c:2, t:"Mine medarbejdere ved, hvad de selv kan bestemme, og hvad de skal spørge om først." },
+  { c:2, t:"Rammerne for arbejdet (fx budget, sikkerhed og regler) er klare, og medarbejderne ved, hvorfor de findes." },
+  { c:2, t:"Når en medarbejder træffer en beslutning inden for rammerne, lader jeg den stå, også selvom jeg selv ville have valgt anderledes." },
+  { c:2, t:"Vi taler sammen om rammerne og justerer dem, når de viser sig at være for stramme eller for løse." }
+];
+
+const SCALE = [
+  { l:"Helt uenig" },
+  { l:"Delvist uenig" },
+  { l:"Delvist enig" },
+  { l:"Helt enig" }
+];
+
+/* ---------- Tilstand ---------- */
+const $ = id => document.getElementById(id);
+let i = 0, ans = [], locked = false, ticketTimer = null, lastCat = -1, flipRun = 0;
+const STOPS = [0, 25, 50, 75, 100];
+
+function show(id){
+  ["intro","quiz","result"].forEach(s => $(s).classList.toggle("hidden", s !== id));
+  $("keypad").classList.toggle("off", id !== "quiz");
+  window.scrollTo({ top:0, behavior:"smooth" });
+}
+
+/* ---------- Rutekort ---------- */
+function setRoute(p){
+  $("rfill").style.width = p + "%";
+  $("mtrain").style.left = p + "%";
+  document.querySelectorAll(".stop").forEach((s, k) =>
+    s.classList.toggle("done", k === 0 || p >= STOPS[k] - 0.01));
+}
+
+/* ---------- Spørgsmål ---------- */
+function render(){
+  const q = QUESTIONS[i], cat = CATS[q.c];
+  setRoute(i / QUESTIONS.length * 75);
+  $("cat").innerHTML = `<i>${cat.key}</i>${cat.en} (${cat.da})`;
+  $("count").textContent = `Spørgsmål ${i+1} af ${QUESTIONS.length}`;
+  $("q").textContent = q.t;
+  if (q.c !== lastCat) {
+    $("qill").querySelector("use").setAttribute("href", "#ill-" + cat.key.toLowerCase());
+    $("qill").classList.remove("pop"); void $("qill").getBoundingClientRect(); $("qill").classList.add("pop");
+    lastCat = q.c;
+  }
+  $("opts").innerHTML = "";
+  SCALE.forEach((o, k) => {
+    const b = document.createElement("button");
+    b.className = "opt";
+    b.innerHTML = `<strong>${k+1}.</strong> ${o.l}`;
+    b.onclick = () => choose(k+1, b);
+    $("opts").appendChild(b);
+  });
+  locked = false;
+}
+
+function choose(v, btn){
+  if (locked) return;
+  locked = true;
+  ans[i] = v;
+  btn.classList.add("sel");
+  setTimeout(() => {
+    if (i < QUESTIONS.length - 1) { i++; render(); }
+    else { setRoute(100); setTimeout(finish, 1000); }
+  }, 280);
+}
+
+document.querySelectorAll(".key").forEach(k => {
+  k.onclick = () => {
+    if ($("quiz").classList.contains("hidden")) return;
+    const n = Number(k.dataset.k), b = $("opts").children[n];
+    if (b) choose(n + 1, b);
+  };
+});
+
+document.addEventListener("keydown", e => {
+  if ($("quiz").classList.contains("hidden")) return;
+  if (["1","2","3","4"].includes(e.key)) {
+    const n = Number(e.key) - 1, b = $("opts").children[n];
+    if (b) choose(n + 1, b);
+  }
+});
+
+$("start").onclick = () => { i = 0; ans = []; lastCat = -1; setRoute(0); show("quiz"); render(); };
+
+/* ---------- Klappende bogstaver ---------- */
+const POOL = "ABCDEFGHIJKLMNOPQRSTUVWXYZÆØÅ0123456789";
+function flip(el, text, startDelay, run){
+  el.innerHTML = "";
+  let n = 0;
+  text.split(" ").forEach(word => {
+    const wd = document.createElement("span");
+    wd.className = "fword";
+    [...word].forEach(ch => {
+      const t = document.createElement("span");
+      t.className = "flap";
+      wd.appendChild(t);
+      const ticks = 5 + Math.floor(Math.random() * 6);
+      let k = 0;
+      const step = () => {
+        if (run !== flipRun) return;
+        t.classList.remove("go"); void t.offsetWidth; t.classList.add("go");
+        if (k < ticks) { t.textContent = POOL[Math.floor(Math.random() * POOL.length)]; k++; setTimeout(step, 70); }
+        else t.textContent = ch;
+      };
+      setTimeout(step, startDelay + n * 45);
+      n++;
+    });
+    el.appendChild(wd);
+  });
+}
+
+/* ---------- Resultat ---------- */
+/* p = hvor langt toget når hen mod stationen (0-1) */
+function overall(total){
+  if (total >= 41) return { cls:"ok",   st:"TIL TIDEN",         p:.93, ontime:true,
+    txt:"Fremragende! Din autonomi er til tiden. Retning, støtte og rammer spiller sammen, og dine medarbejdere kan tage ansvar uden at du behøver at stå på perronen." };
+  if (total >= 33) return { cls:"warn", st:"FORSINKET +5 MIN",  p:.70, ontime:false,
+    txt:"Godt på vej. Autonomien er lidt forsinket. Du har et solidt fundament, men et enkelt greb kan få toget helt frem til tiden." };
+  if (total >= 25) return { cls:"warn", st:"FORSINKET +15 MIN", p:.46, ontime:false,
+    txt:"Autonomien holder stille et stykke fra stationen. Der er både noget, du gør godt, og noget, der bremser. Fokuser på ét greb ad gangen." };
+  return                  { cls:"bad",  st:"FORSINKET +30 MIN", p:.20, ontime:false,
+    txt:"Autonomien er alvorligt forsinket. Det er ikke et nederlag. Det er et godt udgangspunkt: Vælg ét konkret greb nedenfor, og prøv det i to uger." };
+}
+
+function catLevel(sum){
+  if (sum >= 13) return { cls:"ok",   tag:"Til tiden",      k:"ok" };
+  if (sum >= 9)  return { cls:"warn", tag:"Lidt forsinket", k:"warn" };
+  return                { cls:"bad",  tag:"Forsinket",      k:"bad" };
+}
+
+function finish(){
+  const total = ans.reduce((a, b) => a + b, 0);
+  const lv = overall(total);
+  const sums = CATS.map((_, c) => QUESTIONS.reduce((a, q, k) => a + (q.c === c ? ans[k] : 0), 0));
+  const weakest = sums.indexOf(Math.min(...sums));
+  const strongest = sums.indexOf(Math.max(...sums));
+  const cause = total >= 41 ? "Ingen driftsforstyrrelser." : "Årsag: " + CATS[weakest].cause.toLowerCase();
+  const shortCause = total >= 41 ? "INGEN FORSTYRRELSER" : CATS[weakest].short;
+
+  show("result");
+  $("total").textContent = total;
+  $("verdict").textContent = lv.txt;
+
+  /* Afgangstavle */
+  const run = ++flipRun;
+  $("fClock").textContent = new Date().toLocaleTimeString("da-DK", { hour:"2-digit", minute:"2-digit" });
+  $("fStatus").className = "flaps fc-" + lv.cls;
+  ["fTo","fStatus","fCause"].forEach(id => $(id).innerHTML = "");
+  setTimeout(() => {
+    if (run !== flipRun) return;
+    flip($("fTo"), "SELVSTÆNDIGT TEAM", 0, run);
+    flip($("fStatus"), lv.st, 450, run);
+    flip($("fCause"), shortCause, 900, run);
+  }, 500);
+
+  $("cats").innerHTML = CATS.map((c, k) => {
+    const L = catLevel(sums[k]);
+    return `<div class="cat">
+      <svg class="ill" viewBox="0 0 200 140" aria-hidden="true"><use href="#ill-${c.key.toLowerCase()}"/></svg>
+      <div>
+        <div class="cat-head">
+          <span class="name"><i>${c.key}</i>${c.en} (${c.da})</span>
+          <span class="tag ${L.cls}">${L.tag} · ${sums[k]}/16</span>
+        </div>
+        <div class="meter"><div data-w="${sums[k] / 16 * 100}"></div></div>
+        <p>${c.texts[L.k]}</p>
+      </div>
+    </div>`;
+  }).join("");
+
+  const allStrong = sums.every(s => s >= 13);
+  const w = CATS[weakest], s = CATS[strongest];
+  $("next").innerHTML = allStrong
+    ? `<h3>Fortsæt sådan</h3>
+       <p>Alle tre greb er stærke. Hold fast ved det ved at spørge dit team en gang i kvartalet: "Hvad ville gøre det nemmere for jer at beslutte selv?"</p>`
+    : `<h3>Din styrke: ${s.en} (${s.da})</h3>
+       <p>${s.en} er dit stærkeste greb lige nu. Brug det aktivt, og del gerne, hvordan du gør, med kolleger.</p>
+       <h3>Næste skridt: ${w.en} (${w.da})</h3>
+       <p>Her er der mest at hente. Prøv ét af disse:</p>
+       <ul>${w.actions.map(a => `<li>${a}</li>`).join("")}</ul>`;
+
+  /* Billet */
+  $("tDate").textContent = new Date().toLocaleDateString("da-DK", { day:"numeric", month:"short", year:"numeric" });
+  $("tStatus").textContent = lv.st;
+  $("tStatus").className = "t-status st " + lv.cls;
+  $("tScore").textContent = total;
+  $("tCause").textContent = cause;
+
+  /* Tog, signal og tekst */
+  const train = $("train"), sig = $("signal"), cap = $("caption");
+  sig.className = "signal " + (lv.ontime ? "green" : "red");
+  cap.className = "caption";
+  cap.textContent = lv.ontime ? "Ankommet til tiden ✓" : "Venter på grønt signal …";
+  requestAnimationFrame(() => setTimeout(() => {
+    train.classList.add("moving");
+    train.style.left = `calc((100% - 270px) * ${lv.p})`;
+    document.querySelectorAll(".meter div").forEach(d => d.style.width = d.dataset.w + "%");
+    setTimeout(() => {
+      train.classList.remove("moving");
+      cap.classList.add("show", lv.ontime ? "ok" : "bad");
+    }, 3000);
+  }, 120));
+
+  /* Billetten glider ud, når toget er stoppet */
+  clearTimeout(ticketTimer);
+  ticketTimer = setTimeout(() => $("ticketWrap").classList.add("out"), 3200);
+}
+
+$("restart").onclick = () => {
+  clearTimeout(ticketTimer);
+  flipRun++;
+  $("ticketWrap").classList.remove("out");
+  const train = $("train");
+  train.classList.remove("moving");
+  train.style.transition = "none";
+  train.style.left = "-290px";
+  void train.offsetWidth;
+  train.style.transition = "";
+  $("caption").className = "caption";
+  i = 0; ans = []; lastCat = -1;
+  setRoute(0);
+  show("intro");
+};
+</script>
+</body>
+</html>
